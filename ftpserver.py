@@ -131,7 +131,6 @@ class FtpRequest(threading.Thread):
 
 
     def perform_cwd(self):
-        print(os.path.isdir(self.parameter))
         if not self.current_directory.endswith('/'):
             self.current_directory += '/'
 
