@@ -269,7 +269,6 @@ class FtpRequest(threading.Thread):
                 file.close()
                 print(6)
 
-                print(7)
                 self.reply = '226 transfer complete\r\n'
                 self.command = ''
                 self.parameter = ''
