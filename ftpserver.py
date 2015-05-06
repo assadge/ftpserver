@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5030
+COMMAND_PORT = 5035
 
 
 class FtpMode(enum.Enum):
@@ -191,79 +191,49 @@ class FtpRequest(threading.Thread):
             self.data_connection.close()
 
     def perform_stor(self):
-        # self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
         if self.parameter == '':
             self.reply = '226 file transfer finished\r\n'
 
-        # if not self.current_directory.endswith('/'):
-        #     self.current_directory += '/'
-        request_file = self.current_directory + self.parameter
+        stored_file = self.current_directory + self.parameter
 
-        # if self.ftp_mode == FtpMode.ACTIVE:
-        #     if self.transfer_type == TransferType.BINARY:
-        #         self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file + '\r\n', 'utf-8'))
-        #         self.data_socket = socket.socket()
-        #         self.data_socket.connect((self.remote_host, self.remote_port))
-        #
-        #         file = open(request_file, 'wt+')
-        #
-        #         data = ''
-        #         part = None
-        #         while part != "":
-        #             part = self.data_socket.recv(4096)
-        #             data += part
-        #
-        #         file.write(data)
-        #         file.close()
-        #         self.data_socket.close()
-        #     elif self.transfer_type == TransferType.ASCII:
-        #         self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file, 'utf-8'))
-        #         self.data_socket = socket.socket()
-        #         self.data_socket.connect((self.remote_host, self.remote_port))
-        #         file = open(request_file, 'wb+')
-        #
-        #         data = ''
-        #         part = None
-        #         while part != "":
-        #             part = self.data_socket.recv(4096)
-        #             data += part
-        #
-        #         file.write(data)
-        #         file.close()
-        #         self.data_socket.close()
-        if self.ftp_mode == FtpMode.PASSIVE:
-
-            self.command_connection.send(
-                bytes(
-                    '150 Opening data connection for ' + request_file + '\r\n', 'utf-8'
-                )
+        self.command_connection.send(
+            bytes(
+                '150 Opening data connection for ' + stored_file + '\r\n', 'utf-8'
             )
+        )
+
+        if self.ftp_mode == FtpMode.ACTIVE:
+            self.data_socket = socket.socket()
+            self.data_socket.connect((self.remote_host, self.remote_port))
+            self.store_file(self.data_socket, stored_file)
+            self.data_socket.close()
+        elif self.ftp_mode == FtpMode.PASSIVE:
             self.data_connection, addr = self.server_socket.accept()
-
-            if self.transfer_type == TransferType.BINARY:
-                file = open(request_file, 'wb+')
-                data = b' '
-                while len(data) != 0:
-                    data = self.data_connection.recv(4096)
-                    file.write(data)
-
-                file.close()
-            elif self.transfer_type == TransferType.ASCII:
-                file = open(request_file, 'wt+')
-                data = ' '
-                while len(data) != 0:
-                    data = self.data_connection.recv(4096)
-                    data = data.decode('UTF-8').replace('\r\n', '\n')
-                    file.write(data)
-
-                file.close()
-
-            self.reply = '226 transfer complete\r\n'
+            self.store_file(self.data_connection, stored_file)
             self.data_connection.close()
 
+        self.reply = '226 transfer complete\r\n'
+
+    def store_file(self, connection, stored_file):
+        if self.transfer_type == TransferType.BINARY:
+            file = open(stored_file, 'wb+')
+            data = b' '
+            while len(data) != 0:
+                data = connection.recv(4096)
+                file.write(data)
+
+            file.close()
+        elif self.transfer_type == TransferType.ASCII:
+            file = open(stored_file, 'wt+')
+            data = ' '
+            while len(data) != 0:
+                data = connection.recv(4096)
+                data = data.decode('UTF-8').replace('\r\n', '\n')
+                file.write(data)
+
+            file.close()
+
     def perform_pwd(self):
-        print(321)
         self.reply = '257 "' + self.current_directory + '"\r\n'
         print(self.reply)
 
@@ -318,7 +288,7 @@ class FtpRequest(threading.Thread):
         print(int(address_parts[4]) * 256 + int(address_parts[5]))
 
         self.ftp_mode = FtpMode.ACTIVE
-        self.reply = '200 ok\r\n'
+        self.reply = '200 \r\n'
 
     def perform_type(self):
         print(self.parameter)
