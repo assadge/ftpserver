@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5025
+COMMAND_PORT = 5030
 
 
 class FtpMode(enum.Enum):
@@ -121,15 +121,12 @@ class FtpRequest(threading.Thread):
             self.reply = '530 Not logged in\r\n'
 
     def perform_cdup(self):
-        print(self.current_directory)
-        print(self.root_directory)
-        if (os.path.abspath(os.path.join(self.current_directory, os.pardir)) is not None
-                and self.current_directory != self.root_directory):
+        if self.current_directory != self.root_directory:
             self.current_directory = os.path.abspath(os.path.join(self.current_directory, os.pardir))
-            self.reply = '200 ok\r\n'
-        else:
-            # self.reply = '550 current directory has no parent\r\n'
-            self.reply = '200 ok\r\n'
+        self.reply = '200 ok\r\n'
+
+        if not self.current_directory.endswith('/'):
+            self.current_directory += '/'
 
     def perform_cwd(self):
         if not self.current_directory.endswith('/'):
@@ -139,9 +136,7 @@ class FtpRequest(threading.Thread):
             if self.parameter == '..' or self.parameter == '..\\':
                 if self.current_directory != self.root_directory:
                     self.current_directory = os.path.abspath(os.path.join(self.current_directory, os.pardir))
-                    self.reply = '200 ok\r\n'
-                else:
-                    self.reply = '550 current directory has no parent\r\n'
+                self.reply = '200 ok\r\n'
             elif self.parameter == '.' or self.parameter == '.\\':
                 pass
             else:
@@ -201,8 +196,8 @@ class FtpRequest(threading.Thread):
         if self.parameter == '':
             self.reply = '226 file transfer finished\r\n'
 
-        if not self.current_directory.endswith('/'):
-            self.current_directory += '/'
+        # if not self.current_directory.endswith('/'):
+        #     self.current_directory += '/'
         request_file = self.current_directory + self.parameter
 
         # if self.ftp_mode == FtpMode.ACTIVE:
