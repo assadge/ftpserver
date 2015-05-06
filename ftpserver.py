@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5024
+COMMAND_PORT = 5025
 
 
 class FtpMode(enum.Enum):
@@ -131,21 +131,13 @@ class FtpRequest(threading.Thread):
             # self.reply = '550 current directory has no parent\r\n'
             self.reply = '200 ok\r\n'
 
-
-
     def perform_cwd(self):
         if not self.current_directory.endswith('/'):
             self.current_directory += '/'
 
         if os.path.exists(self.parameter) and os.path.isdir(self.parameter):
             if self.parameter == '..' or self.parameter == '..\\':
-                # if self.current_directory.upper() == self.root_directory.upper():
-                #     self.reply = '550 ' + self.parameter + 'no such file or directory\r\n'
-                # else:
-                #     self.current_directory = os.path.abspath(self.current_directory + '..')
-                #     self.reply = '250 ok\r\n'
-                if (os.path.abspath(os.path.join(self.current_directory, os.pardir)) is not None
-                        and self.current_directory != self.root_directory):
+                if self.current_directory != self.root_directory:
                     self.current_directory = os.path.abspath(os.path.join(self.current_directory, os.pardir))
                     self.reply = '200 ok\r\n'
                 else:
@@ -159,10 +151,10 @@ class FtpRequest(threading.Thread):
             self.current_directory += self.parameter
             self.reply = '250 ok\r\n'
         else:
-            # self.reply = '501 syntax error in parameters or arguments\r\n'
-            self.reply = '250 ok\r\n'
+            self.reply = '501 syntax error in parameters or arguments\r\n'
 
-        print(self.current_directory)
+        if not self.current_directory.endswith('/'):
+            self.current_directory += '/'
 
     def perform_quit(self):
         self.reply = '221 service closing connection'
