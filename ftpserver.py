@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5008
+COMMAND_PORT = 5017
 
 
 class FtpMode(enum.Enum):
@@ -214,55 +214,49 @@ class FtpRequest(threading.Thread):
 
         request_file = self.current_directory + self.parameter
 
-        if self.ftp_mode == FtpMode.ACTIVE:
-            if self.transfer_type == TransferType.BINARY:
-                self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file + '\r\n', 'utf-8'))
-                self.data_socket = socket.socket()
-                self.data_socket.connect((self.remote_host, self.remote_port))
-
-                file = open(request_file, 'wt+')
-
-                data = ''
-                part = None
-                while part != "":
-                    part = self.data_socket.recv(4096)
-                    data += part
-
-                file.write(data)
-                file.close()
-                self.data_socket.close()
-            elif self.transfer_type == TransferType.ASCII:
-                self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file, 'utf-8'))
-                self.data_socket = socket.socket()
-                self.data_socket.connect((self.remote_host, self.remote_port))
-                file = open(request_file, 'wb+')
-
-                data = ''
-                part = None
-                while part != "":
-                    part = self.data_socket.recv(4096)
-                    data += part
-
-                file.write(data)
-                file.close()
-                self.data_socket.close()
-        elif self.ftp_mode == FtpMode.PASSIVE:
+        # if self.ftp_mode == FtpMode.ACTIVE:
+        #     if self.transfer_type == TransferType.BINARY:
+        #         self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file + '\r\n', 'utf-8'))
+        #         self.data_socket = socket.socket()
+        #         self.data_socket.connect((self.remote_host, self.remote_port))
+        #
+        #         file = open(request_file, 'wt+')
+        #
+        #         data = ''
+        #         part = None
+        #         while part != "":
+        #             part = self.data_socket.recv(4096)
+        #             data += part
+        #
+        #         file.write(data)
+        #         file.close()
+        #         self.data_socket.close()
+        #     elif self.transfer_type == TransferType.ASCII:
+        #         self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file, 'utf-8'))
+        #         self.data_socket = socket.socket()
+        #         self.data_socket.connect((self.remote_host, self.remote_port))
+        #         file = open(request_file, 'wb+')
+        #
+        #         data = ''
+        #         part = None
+        #         while part != "":
+        #             part = self.data_socket.recv(4096)
+        #             data += part
+        #
+        #         file.write(data)
+        #         file.close()
+        #         self.data_socket.close()
+        if self.ftp_mode == FtpMode.PASSIVE:
             if self.transfer_type == TransferType.BINARY:
                 self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file + '\r\n', 'utf-8'))
                 self.data_connection, addr = self.server_socket.accept()
 
-
-                print(3)
                 file = open(request_file, 'wb+')
-                print(4)
-
                 data = b''
                 part = ' '
                 while len(part) != 0:
                     part = self.data_connection.recv(4096)
                     data += part
-                    print(1)
-
 
                 print(data)
                 print("fewe")
@@ -279,30 +273,22 @@ class FtpRequest(threading.Thread):
             elif self.transfer_type == TransferType.ASCII:
                 self.command_connection.send(bytes('150 Opening Binary mode data connection for ' + request_file + '\r\n', 'utf-8'))
                 self.data_connection, addr = self.server_socket.accept()
-                print(3)
+
                 file = open(request_file, 'wt+')
-                print(4)
 
                 data = ''
                 part = ' '
                 while len(part) != 0:
                     part = self.data_connection.recv(4096)
                     data += part.decode('UTF-8')
-                    print(1)
-                print(1)
 
-                print(data)
-                print("fewe")
+                data = data.replace('\r\n', '\n')
                 file.write(data)
                 file.flush()
-                print(5)
                 file.close()
-                print(6)
                 self.command = ''
                 self.parameter = ''
 
-
-                print(7)
                 self.reply = '226 transfer complete\r\n'
                 self.data_connection.close()
 
