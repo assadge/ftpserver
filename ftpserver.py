@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5000
+COMMAND_PORT = 5008
 
 
 class FtpMode(enum.Enum):
@@ -31,11 +31,13 @@ class FtpRequest(threading.Thread):
         threading.Thread.__init__(self)
         self.command_connection = connection
         self.client_id = client_id
-        self.remote_host = ''
-        self.remote_port = 0
+
         self.server_socket = None
         self.data_socket = None
         self.data_connection = None
+
+        self.remote_host = ''
+        self.remote_port = 0
 
         self.command = ''
         self.parameter = ''
@@ -50,14 +52,14 @@ class FtpRequest(threading.Thread):
 
     def parse_input(self, input_string):
         space_position = str(input_string).find(' ')
-        print(input_string)
+        print(len(input_string))
         if space_position == -1:
-            self.command = input_string[2:-5]
+            self.command = input_string
         else:
-            self.command = input_string[2:space_position]
+            self.command = input_string[:space_position]
 
         if not (space_position >= len(input_string) or space_position == -1):
-            self.parameter = input_string[space_position + 1:-5]
+            self.parameter = input_string[space_position + 1:]
 
         return self.command
 
@@ -65,7 +67,8 @@ class FtpRequest(threading.Thread):
 
         while True:
             print(1)
-            line = str(self.command_connection.recv(100))
+            line = (self.command_connection.recv(100)).decode('utf-8')
+            line = line.strip()
             if line == '':
                 return
 
@@ -304,6 +307,7 @@ class FtpRequest(threading.Thread):
                 self.data_connection.close()
 
     def perform_pwd(self):
+        print(321)
         self.reply = '257 "' + self.current_directory + '"\r\n'
         print(self.reply)
 
