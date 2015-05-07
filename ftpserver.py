@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5035
+COMMAND_PORT = 5000
 
 
 class FtpMode(enum.Enum):
@@ -66,8 +66,10 @@ class FtpRequest(threading.Thread):
     def run(self):
 
         while True:
-            print(1)
-            line = (self.command_connection.recv(100)).decode('utf-8')
+            line = ''
+            while not line.endswith('\n'):
+                line += (self.command_connection.recv(100)).decode('utf-8')
+
             line = line.strip()
             if line == '':
                 return
@@ -205,33 +207,26 @@ class FtpRequest(threading.Thread):
         if self.ftp_mode == FtpMode.ACTIVE:
             self.data_socket = socket.socket()
             self.data_socket.connect((self.remote_host, self.remote_port))
-            self.store_file(self.data_socket, stored_file)
-            self.data_socket.close()
         elif self.ftp_mode == FtpMode.PASSIVE:
-            self.data_connection, addr = self.server_socket.accept()
-            self.store_file(self.data_connection, stored_file)
-            self.data_connection.close()
+            self.data_socket, addr = self.server_socket.accept()
 
-        self.reply = '226 transfer complete\r\n'
-
-    def store_file(self, connection, stored_file):
         if self.transfer_type == TransferType.BINARY:
             file = open(stored_file, 'wb+')
             data = b' '
             while len(data) != 0:
-                data = connection.recv(4096)
+                data = self.data_socket.recv(4096)
                 file.write(data)
-
             file.close()
         elif self.transfer_type == TransferType.ASCII:
             file = open(stored_file, 'wt+')
             data = ' '
             while len(data) != 0:
-                data = connection.recv(4096)
+                data = self.data_socket.recv(4096)
                 data = data.decode('UTF-8').replace('\r\n', '\n')
                 file.write(data)
-
             file.close()
+
+        self.reply = '226 transfer complete\r\n'
 
     def perform_pwd(self):
         self.reply = '257 "' + self.current_directory + '"\r\n'
