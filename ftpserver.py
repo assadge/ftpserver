@@ -6,7 +6,7 @@ import pwd
 import grp
 import threading
 
-COMMAND_PORT = 5000
+COMMAND_PORT = 5003
 
 
 class FtpMode(enum.Enum):
@@ -161,47 +161,38 @@ class FtpRequest(threading.Thread):
             self.reply = '501 syntax error\r\n'
             return
 
-        if not self.current_directory.endswith('/'):
-            self.current_directory += '/'
         requested_file = self.current_directory + self.parameter
 
+        self.command_connection.send(
+            bytes('150 opening binary mode data connection for ' + requested_file + '\r\n', 'utf-8')
+        )
+
+        if self.ftp_mode == FtpMode.ACTIVE:
+            self.data_socket = socket.socket()
+            self.data_socket.connect((self.remote_host, self.remote_port))
+        elif self.ftp_mode == FtpMode.PASSIVE:
+            self.data_socket, addr = self.server_socket.accept()
+
         if self.transfer_type == TransferType.BINARY:
-            self.command_connection.send(
-                bytes('150 opening binary mode data connection for ' + requested_file + '\r\n', 'utf-8')
-            )
-            # self.data_socket = socket.socket()
-            # self.data_socket.connect((self.remote_host, self.remote_port))
-            self.data_connection, addr = self.server_socket.accept()
             content = open(requested_file, 'rb').read()
-            print(content)
-            self.data_connection.send(content)
+            self.data_socket.send(content)
             self.reply = '226 file transfer finished\r\n'
-            self.command = ''
-            self.parameter = ''
-            self.data_connection.close()
         elif self.transfer_type == TransferType.ASCII:
-            self.command_connection.send(
-                bytes('150 opening binary mode data connection for ' + requested_file + '\r\n', 'utf-8')
-            )
-            self.data_connection, addr = self.server_socket.accept()
             content = open(requested_file, 'rt').read()
-            print(content)
-            self.data_connection.send(bytes(content, 'utf-8'))
+            self.data_socket.send(bytes(content, 'utf-8'))
             self.reply = '226 file transfer finished\r\n'
-            self.command = ''
-            self.parameter = ''
-            self.data_connection.close()
+
+        self.data_socket.close()
 
     def perform_stor(self):
         if self.parameter == '':
-            self.reply = '226 file transfer finished\r\n'
+            self.reply = '501 syntax error\r\n'
+            return
 
         stored_file = self.current_directory + self.parameter
 
         self.command_connection.send(
-            bytes(
-                '150 Opening data connection for ' + stored_file + '\r\n', 'utf-8'
-            )
+            bytes('150 Opening data connection for ' + stored_file + '\r\n', 'utf-8')
         )
 
         if self.ftp_mode == FtpMode.ACTIVE:
