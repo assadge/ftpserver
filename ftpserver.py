@@ -34,7 +34,6 @@ class FtpRequest(threading.Thread):
 
         self.server_socket = None
         self.data_socket = None
-        self.data_connection = None
 
         self.remote_host = ''
         self.remote_port = 0
@@ -213,7 +212,7 @@ class FtpRequest(threading.Thread):
             data = ' '
             while len(data) != 0:
                 data = self.data_socket.recv(4096)
-                data = data.decode('UTF-8').replace('\r\n', '\n')
+                data = data.decode('UTF-8')
                 file.write(data)
             file.close()
 
@@ -221,7 +220,6 @@ class FtpRequest(threading.Thread):
 
     def perform_pwd(self):
         self.reply = '257 "' + self.current_directory + '"\r\n'
-        print(self.reply)
 
     def perform_list(self):
         if self.ftp_mode == FtpMode.ACTIVE:
@@ -229,14 +227,11 @@ class FtpRequest(threading.Thread):
             self.data_socket.connect((self.remote_host, self.remote_port))
         elif self.ftp_mode == FtpMode.PASSIVE:
             self.data_socket, addr = self.server_socket.accept()
-        else:
-            return
 
         self.command_connection.send(bytes('125 data connection already open\r\n', 'utf-8'))
         if not self.current_directory.endswith('/'):
                     self.current_directory += '/'
 
-        directory_listing = ''
         try:
             for i in os.listdir(self.current_directory):
                 permission = stat.filemode(os.stat(self.current_directory + i).st_mode)
@@ -277,7 +272,6 @@ class FtpRequest(threading.Thread):
         self.reply = '200 \r\n'
 
     def perform_type(self):
-        print(self.parameter)
         if self.parameter == 'A':
             self.transfer_type = TransferType.ASCII
             self.reply = '200 change to ascii mode\r\n'
