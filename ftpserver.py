@@ -5,8 +5,9 @@ import stat
 import pwd
 import grp
 import threading
+import sqlite3
 
-COMMAND_PORT = 5003
+COMMAND_PORT = 5002
 
 
 class FtpMode(enum.Enum):
@@ -106,18 +107,55 @@ class FtpRequest(threading.Thread):
 
             self.command_connection.send(bytes(self.reply, 'utf-8'))
 
+    def is_username_valid(self, username):
+        DB_NAME = 'users.db'
+        SELECT = 'SELECT name FROM users WHERE name="%s"' % username
+
+        connection = sqlite3.connect(DB_NAME)
+        cursor = connection.execute(SELECT)
+        row = cursor.fetchone()
+        connection.close()
+
+        return row is not None
+
     def perform_user(self):
         if self.command == 'USER':
-            self.reply = '331 user name okay, need password\r\n'
-            self.server_state = ServerState.WAITING_FOR_PASSWORD
-            self.user = self.parameter
+            if self.is_username_valid(self.parameter):
+                self.reply = '331 user name okay, need password\r\n'
+                self.server_state = ServerState.WAITING_FOR_PASSWORD
+                self.user = self.parameter
+            else:
+                self.reply = '430 incorrect username\r\n'
         else:
             self.reply = '501 syntax error in parameters or arguments\r\n'
 
+    def is_pass_valid(self, password):
+        DB_NAME = 'users.db'
+        SELECT = 'SELECT password FROM users WHERE name="%s"' % self.user
+
+        connection = sqlite3.connect(DB_NAME)
+        cursor = connection.execute(SELECT)
+        row = cursor.fetchone()
+        connection.close()
+
+        if row is None:
+            return False
+
+        valid_password = row[0]
+
+        if valid_password == password:
+            return True
+        else:
+            return False
+
     def perform_pass(self):
         if self.command == 'PASS':
-            self.reply = '230 User logged in, proceed\r\n'
-            self.server_state = ServerState.LOGGED_IN
+            if self.is_pass_valid(self.parameter):
+                self.reply = '230 User logged in, proceed\r\n'
+                self.server_state = ServerState.LOGGED_IN
+            else:
+                self.reply = '430 Invalid password\r\n'
+
         else:
             self.reply = '530 Not logged in\r\n'
 
