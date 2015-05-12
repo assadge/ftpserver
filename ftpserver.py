@@ -7,7 +7,7 @@ import grp
 import threading
 import sqlite3
 
-COMMAND_PORT = 5005
+COMMAND_PORT = 5006
 
 
 class FtpMode(enum.Enum):
@@ -107,6 +107,7 @@ class FtpRequest(threading.Thread):
                     self.perform_pwd()
 
             self.command_connection.send(bytes(self.reply, 'utf-8'))
+        self.command_connection.close()
 
     def is_username_valid(self, username):
         DB_NAME = 'users.db'
@@ -192,7 +193,6 @@ class FtpRequest(threading.Thread):
             self.current_directory += '/'
 
     def perform_quit(self):
-        self.command_connection.close()
         self.reply = '221 service closing connection\r\n'
 
     def perform_retr(self):
