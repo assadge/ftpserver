@@ -7,7 +7,7 @@ import grp
 import threading
 import sqlite3
 
-COMMAND_PORT = 5002
+COMMAND_PORT = 5005
 
 
 class FtpMode(enum.Enum):
@@ -64,8 +64,8 @@ class FtpRequest(threading.Thread):
         return self.command
 
     def run(self):
-
-        while True:
+        quited = False
+        while not quited:
             line = ''
             while not line.endswith('\n'):
                 line += (self.command_connection.recv(100)).decode('utf-8')
@@ -88,6 +88,7 @@ class FtpRequest(threading.Thread):
                     self.perform_cwd()
                 elif request_command == 'QUIT':
                     self.perform_quit()
+                    quited = True
                 elif request_command == 'RETR':
                     self.perform_retr()
                 elif request_command == 'STOR':
@@ -191,7 +192,8 @@ class FtpRequest(threading.Thread):
             self.current_directory += '/'
 
     def perform_quit(self):
-        self.reply = '221 service closing connection'
+        self.command_connection.close()
+        self.reply = '221 service closing connection\r\n'
 
     def perform_retr(self):
         if self.parameter == '':
@@ -261,6 +263,9 @@ class FtpRequest(threading.Thread):
 
     def perform_list(self):
         if self.ftp_mode == FtpMode.ACTIVE:
+            if self.remote_host == '' or self.remote_port == 0:
+                self.reply = '503 bad sequence of commands\r\n'
+                return
             self.data_socket = socket.socket()
             self.data_socket.connect((self.remote_host, self.remote_port))
         elif self.ftp_mode == FtpMode.PASSIVE:
